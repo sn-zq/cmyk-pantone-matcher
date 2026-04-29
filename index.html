@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMYK → Pantone Matcher</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 24px 16px;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 28px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin: 0 0 28px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+    .section-label {
+      font-size: 12px;
+      color: #888;
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .chan-label {
+      font-size: 14px;
+      font-weight: 700;
+      width: 16px;
+      flex-shrink: 0;
+    }
+    .num-input {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      padding: 8px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fafafa;
+      color: #1a1a1a;
+      -moz-appearance: textfield;
+      transition: border-color 0.15s;
+    }
+    .num-input::-webkit-outer-spin-button,
+    .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .num-input:focus { outline: none; border-color: #999; background: #fff; }
+    .pct { font-size: 13px; color: #aaa; flex-shrink: 0; }
+    .swatch {
+      width: 100%;
+      height: 110px;
+      border-radius: 10px;
+      border: 1px solid #e8e8e8;
+      transition: background 0.25s;
+      margin-bottom: 8px;
+    }
+    .hex-out { font-size: 12px; color: #888; margin: 0; }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0 0 10px;
+      color: #333;
+    }
+    .result-card {
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .pantone-chip {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+    .pantone-name { font-size: 17px; font-weight: 600; }
+    .pantone-sub { font-size: 12px; color: #888; margin-top: 3px; }
+    .badge {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: #eee;
+      color: #666;
+      margin-top: 6px;
+      display: inline-block;
+    }
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .mini-card {
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .mini-chip {
+      width: 100%;
+      height: 38px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      margin-bottom: 8px;
+    }
+    .mini-name { font-size: 12px; font-weight: 600; }
+    .mini-dist { font-size: 11px; color: #999; margin-top: 2px; }
+    .note {
+      font-size: 11px;
+      color: #bbb;
+      margin: 20px 0 0;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>CMYK → Pantone Matcher</h1>
+  <p class="subtitle">Type your CMYK values to find the closest Pantone colour</p>
+
+  <div class="grid">
+    <div>
+      <p class="section-label">CMYK Values</p>
+      <div class="row">
+        <span class="chan-label" style="color:#00b4d8;">C</span>
+        <input type="number" class="num-input" min="0" max="100" value="60" id="nc">
+        <span class="pct">%</span>
+      </div>
+      <div class="row">
+        <span class="chan-label" style="color:#e63946;">M</span>
+        <input type="number" class="num-input" min="0" max="100" value="10" id="nm">
+        <span class="pct">%</span>
+      </div>
+      <div class="row">
+        <span class="chan-label" style="color:#f4a261;">Y</span>
+        <input type="number" class="num-input" min="0" max="100" value="5" id="ny">
+        <span class="pct">%</span>
+      </div>
+      <div class="row">
+        <span class="chan-label" style="color:#555;">K</span>
+        <input type="number" class="num-input" min="0" max="100" value="0" id="nk">
+        <span class="pct">%</span>
+      </div>
+    </div>
+    <div>
+      <p class="section-label">Your Colour</p>
+      <div class="swatch" id="swatch"></div>
+      <p class="hex-out" id="hex-out"></p>
+    </div>
+  </div>
+
+  <p class="section-title">Closest Pantone match</p>
+  <div class="result-card" id="best"></div>
+
+  <p class="section-title">Next closest matches</p>
+  <div class="top-grid" id="top"></div>
+
+  <p class="note">⚠️ Matches are approximate RGB equivalents — always verify against a physical Pantone swatch book. Coated (C) and uncoated (U) stocks will differ.</p>
+</div>
+
+<script>
+const pantone=[
+  {name:"P 1-1 U",r:252,g:237,b:220},{name:"P 1-2 U",r:252,g:222,b:196},{name:"P 1-3 U",r:255,g:207,b:168},{name:"P 1-4 U",r:255,g:185,b:130},{name:"P 1-5 U",r:255,g:160,b:90},{name:"P 1-6 U",r:240,g:133,b:51},{name:"P 1-7 U",r:212,g:103,b:15},
+  {name:"P 2-1 U",r:255,g:235,b:208},{name:"P 2-2 U",r:255,g:220,b:180},{name:"P 2-3 U",r:255,g:200,b:148},{name:"P 2-4 U",r:255,g:175,b:110},{name:"P 2-5 U",r:250,g:148,b:72},{name:"P 2-6 U",r:230,g:120,b:38},{name:"P 2-7 U",r:200,g:90,b:10},
+  {name:"P 3-1 U",r:255,g:240,b:215},{name:"P 3-3 U",r:255,g:212,b:155},{name:"P 3-5 U",r:250,g:165,b:80},{name:"P 3-7 U",r:205,g:108,b:20},
+  {name:"P 4-1 U",r:255,g:238,b:205},{name:"P 4-3 U",r:255,g:208,b:138},{name:"P 4-5 U",r:240,g:160,b:55},{name:"P 4-7 U",r:190,g:105,b:5},
+  {name:"P 5-1 U",r:255,g:240,b:198},{name:"P 5-3 U",r:255,g:213,b:125},{name:"P 5-5 U",r:238,g:168,b:38},{name:"P 5-7 U",r:185,g:115,b:0},
+  {name:"P 6-1 U",r:255,g:242,b:195},{name:"P 6-3 U",r:255,g:218,b:115},{name:"P 6-5 U",r:242,g:178,b:28},{name:"P 6-7 U",r:190,g:128,b:0},
+  {name:"P 7-1 U",r:255,g:244,b:195},{name:"P 7-3 U",r:255,g:226,b:120},{name:"P 7-5 U",r:242,g:190,b:22},{name:"P 7-7 U",r:190,g:142,b:0},
+  {name:"P 8-1 U",r:255,g:248,b:200},{name:"P 8-3 U",r:255,g:233,b:126},{name:"P 8-5 U",r:242,g:202,b:22},{name:"P 8-7 U",r:188,g:152,b:0},
+  {name:"P 9-1 U",r:255,g:248,b:210},{name:"P 9-3 U",r:255,g:237,b:138},{name:"P 9-5 U",r:242,g:210,b:35},{name:"P 9-7 U",r:188,g:160,b:0},
+  {name:"P 10-1 U",r:248,g:248,b:208},{name:"P 10-3 U",r:232,g:238,b:135},{name:"P 10-5 U",r:200,g:215,b:28},{name:"P 10-7 U",r:145,g:162,b:0},
+  {name:"P 11-1 U",r:238,g:245,b:205},{name:"P 11-3 U",r:208,g:228,b:128},{name:"P 11-5 U",r:158,g:198,b:25},{name:"P 11-7 U",r:102,g:142,b:0},
+  {name:"P 12-1 U",r:228,g:242,b:208},{name:"P 12-3 U",r:188,g:225,b:138},{name:"P 12-5 U",r:125,g:192,b:40},{name:"P 12-7 U",r:68,g:135,b:0},
+  {name:"P 13-1 U",r:218,g:240,b:212},{name:"P 13-3 U",r:168,g:218,b:158},{name:"P 13-5 U",r:88,g:182,b:75},{name:"P 13-7 U",r:18,g:130,b:10},
+  {name:"P 14-1 U",r:210,g:238,b:218},{name:"P 14-3 U",r:148,g:215,b:172},{name:"P 14-5 U",r:58,g:178,b:100},{name:"P 14-7 U",r:0,g:128,b:42},
+  {name:"P 15-1 U",r:205,g:238,b:222},{name:"P 15-3 U",r:138,g:215,b:185},{name:"P 15-5 U",r:38,g:178,b:125},{name:"P 15-7 U",r:0,g:125,b:68},
+  {name:"P 16-1 U",r:200,g:238,b:228},{name:"P 16-3 U",r:128,g:215,b:195},{name:"P 16-5 U",r:22,g:175,b:145},{name:"P 16-7 U",r:0,g:120,b:88},
+  {name:"P 17-1 U",r:198,g:238,b:235},{name:"P 17-3 U",r:122,g:215,b:208},{name:"P 17-5 U",r:8,g:175,b:165},{name:"P 17-7 U",r:0,g:118,b:108},
+  {name:"P 18-1 U",r:195,g:238,b:240},{name:"P 18-3 U",r:118,g:215,b:222},{name:"P 18-5 U",r:0,g:172,b:182},{name:"P 18-7 U",r:0,g:115,b:122},
+  {name:"P 19-1 U",r:195,g:235,b:242},{name:"P 19-3 U",r:115,g:208,b:225},{name:"P 19-5 U",r:0,g:165,b:195},{name:"P 19-7 U",r:0,g:108,b:132},
+  {name:"P 20-1 U",r:195,g:232,b:245},{name:"P 20-3 U",r:112,g:200,b:228},{name:"P 20-5 U",r:0,g:155,b:198},{name:"P 20-7 U",r:0,g:100,b:138},
+  {name:"P 21-1 U",r:198,g:228,b:248},{name:"P 21-3 U",r:122,g:192,b:232},{name:"P 21-5 U",r:5,g:142,b:200},{name:"P 21-7 U",r:0,g:88,b:140},
+  {name:"P 22-1 U",r:202,g:225,b:248},{name:"P 22-3 U",r:132,g:185,b:232},{name:"P 22-5 U",r:20,g:128,b:200},{name:"P 22-7 U",r:0,g:72,b:138},
+  {name:"P 23-1 U",r:208,g:222,b:248},{name:"P 23-3 U",r:142,g:178,b:232},{name:"P 23-5 U",r:38,g:115,b:198},{name:"P 23-7 U",r:0,g:60,b:135},
+  {name:"P 24-1 U",r:212,g:220,b:248},{name:"P 24-3 U",r:152,g:172,b:232},{name:"P 24-5 U",r:58,g:105,b:198},{name:"P 24-7 U",r:0,g:48,b:135},
+  {name:"P 25-1 U",r:218,g:218,b:248},{name:"P 25-3 U",r:165,g:162,b:232},{name:"P 25-5 U",r:80,g:90,b:198},{name:"P 25-7 U",r:15,g:30,b:135},
+  {name:"P 26-1 U",r:225,g:215,b:248},{name:"P 26-3 U",r:178,g:155,b:232},{name:"P 26-5 U",r:100,g:72,b:198},{name:"P 26-7 U",r:38,g:15,b:135},
+  {name:"P 27-1 U",r:232,g:215,b:248},{name:"P 27-3 U",r:192,g:155,b:232},{name:"P 27-5 U",r:122,g:65,b:198},{name:"P 27-7 U",r:58,g:5,b:135},
+  {name:"P 28-1 U",r:238,g:215,b:248},{name:"P 28-3 U",r:208,g:155,b:232},{name:"P 28-5 U",r:148,g:58,b:198},{name:"P 28-7 U",r:82,g:0,b:135},
+  {name:"P 29-1 U",r:242,g:215,b:248},{name:"P 29-3 U",r:218,g:155,b:232},{name:"P 29-5 U",r:170,g:55,b:198},{name:"P 29-7 U",r:108,g:0,b:135},
+  {name:"P 30-1 U",r:245,g:215,b:245},{name:"P 30-3 U",r:225,g:152,b:228},{name:"P 30-5 U",r:182,g:50,b:192},{name:"P 30-7 U",r:118,g:0,b:130},
+  {name:"P 31-1 U",r:248,g:215,b:238},{name:"P 31-3 U",r:232,g:152,b:212},{name:"P 31-5 U",r:192,g:50,b:168},{name:"P 31-7 U",r:128,g:0,b:112},
+  {name:"P 32-1 U",r:248,g:215,b:232},{name:"P 32-3 U",r:232,g:152,b:198},{name:"P 32-5 U",r:192,g:50,b:148},{name:"P 32-7 U",r:128,g:0,b:90},
+  {name:"P 33-1 U",r:248,g:215,b:225},{name:"P 33-3 U",r:232,g:152,b:182},{name:"P 33-5 U",r:192,g:50,b:125},{name:"P 33-7 U",r:128,g:0,b:68},
+  {name:"P 34-1 U",r:248,g:215,b:218},{name:"P 34-3 U",r:232,g:152,b:165},{name:"P 34-5 U",r:192,g:50,b:98},{name:"P 34-7 U",r:128,g:0,b:42},
+  {name:"P 35-1 U",r:248,g:218,b:215},{name:"P 35-3 U",r:232,g:162,b:158},{name:"P 35-5 U",r:192,g:65,b:62},{name:"P 35-7 U",r:128,g:0,b:0},
+  {name:"P 36-1 U",r:248,g:222,b:215},{name:"P 36-3 U",r:232,g:172,b:155},{name:"P 36-5 U",r:192,g:85,b:58},{name:"P 36-7 U",r:128,g:8,b:0},
+  {name:"P 37-1 U",r:248,g:228,b:218},{name:"P 37-3 U",r:232,g:185,b:158},{name:"P 37-5 U",r:192,g:110,b:60},{name:"P 37-7 U",r:128,g:32,b:0},
+  {name:"P 38-1 U",r:248,g:232,b:220},{name:"P 38-3 U",r:232,g:195,b:165},{name:"P 38-5 U",r:192,g:128,b:70},{name:"P 38-7 U",r:128,g:55,b:0},
+  {name:"P 39-1 U",r:245,g:240,b:232},{name:"P 39-3 U",r:222,g:212,b:188},{name:"P 39-5 U",r:178,g:160,b:118},{name:"P 39-7 U",r:115,g:95,b:45},
+  {name:"P 40-1 U",r:242,g:238,b:228},{name:"P 40-3 U",r:212,g:205,b:178},{name:"P 40-5 U",r:160,g:148,b:105},{name:"P 40-7 U",r:95,g:82,b:32},
+  {name:"P 41-1 U",r:238,g:235,b:222},{name:"P 41-3 U",r:202,g:195,b:170},{name:"P 41-5 U",r:145,g:138,b:100},{name:"P 41-7 U",r:80,g:72,b:30},
+  {name:"Cool Gray 1 C",r:240,g:240,b:240},{name:"Cool Gray 3 C",r:215,g:215,b:215},{name:"Cool Gray 5 C",r:185,g:185,b:185},{name:"Cool Gray 7 C",r:150,g:150,b:150},{name:"Cool Gray 9 C",r:112,g:112,b:112},{name:"Cool Gray 11 C",r:65,g:65,b:65},
+  {name:"Warm Gray 1 C",r:242,g:238,b:232},{name:"Warm Gray 3 C",r:218,g:210,b:200},{name:"Warm Gray 5 C",r:185,g:172,b:158},{name:"Warm Gray 7 C",r:145,g:130,b:112},{name:"Warm Gray 9 C",r:100,g:85,b:68},{name:"Warm Gray 11 C",r:55,g:40,b:25},
+  {name:"Black C",r:30,g:30,b:30},{name:"White",r:255,g:255,b:255},
+  {name:"Pantone 485 C",r:218,g:37,b:29},{name:"Pantone 186 C",r:200,g:16,b:46},{name:"Pantone 032 C",r:239,g:51,b:64},{name:"Pantone 1795 C",r:220,g:38,b:38},
+  {name:"Pantone 021 C",r:254,g:80,b:0},{name:"Pantone 1505 C",r:255,g:102,b:0},{name:"Pantone 144 C",r:237,g:139,b:0},{name:"Pantone 7549 C",r:255,g:184,b:28},{name:"Pantone 109 C",r:255,g:209,b:0},
+  {name:"Pantone 361 C",r:71,g:184,b:72},{name:"Pantone 348 C",r:0,g:133,b:63},{name:"Pantone 355 C",r:0,g:169,b:79},{name:"Pantone 375 C",r:119,g:221,b:56},
+  {name:"Pantone 300 C",r:0,g:84,b:166},{name:"Pantone 286 C",r:0,g:51,b:160},{name:"Pantone 293 C",r:31,g:73,b:167},{name:"Pantone 280 C",r:0,g:32,b:128},{name:"Pantone 072 C",r:10,g:0,b:161},
+  {name:"Pantone 2587 C",r:141,g:53,b:211},{name:"Pantone 2685 C",r:108,g:13,b:198},{name:"Pantone 268 C",r:85,g:26,b:139},
+  {name:"Pantone 232 C",r:244,g:94,b:170},{name:"Pantone 213 C",r:235,g:60,b:140},{name:"Pantone 218 C",r:223,g:70,b:137},
+  {name:"Pantone 354 C",r:0,g:175,b:85},{name:"Pantone 3255 C",r:0,g:191,b:167},{name:"Pantone 3135 C",r:0,g:155,b:175},
+  {name:"Pantone 877 C (Silver)",r:166,g:169,b:170},{name:"Pantone 871 C (Gold)",r:139,g:117,b:67},
+];
+
+function cmykToRgb(c,m,y,k){return{r:Math.round(255*(1-c/100)*(1-k/100)),g:Math.round(255*(1-m/100)*(1-k/100)),b:Math.round(255*(1-y/100)*(1-k/100))};}
+function toHex(r,g,b){return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');}
+function dist(r1,g1,b1,r2,g2,b2){const dr=r1-r2,dg=g1-g2,db=b1-b2;return Math.sqrt(dr*dr+dg*dg+db*db);}
+function clamp(v){return Math.min(100,Math.max(0,Math.round(v)));}
+
+function update(){
+  const c=clamp(+document.getElementById('nc').value||0);
+  const m=clamp(+document.getElementById('nm').value||0);
+  const y=clamp(+document.getElementById('ny').value||0);
+  const k=clamp(+document.getElementById('nk').value||0);
+  const {r,g,b}=cmykToRgb(c,m,y,k);
+  const hex=toHex(r,g,b);
+  document.getElementById('swatch').style.background=hex;
+  document.getElementById('hex-out').textContent=`RGB (${r}, ${g}, ${b})  ·  ${hex.toUpperCase()}`;
+  const sorted=[...pantone].map(p=>({...p,d:dist(r,g,b,p.r,p.g,p.b)})).sort((a,b)=>a.d-b.d);
+  const best=sorted[0];
+  const bh=toHex(best.r,best.g,best.b);
+  const score=Math.max(0,Math.round(100-(best.d/441.7)*100));
+  document.getElementById('best').innerHTML=`<div class="pantone-chip" style="background:${bh}"></div><div><div class="pantone-name">${best.name}</div><div class="pantone-sub">${bh.toUpperCase()}  ·  RGB (${best.r}, ${best.g}, ${best.b})</div><span class="badge">Match score: ${score}%</span></div>`;
+  document.getElementById('top').innerHTML=sorted.slice(1,5).map(p=>{const h=toHex(p.r,p.g,p.b);const s=Math.max(0,Math.round(100-(p.d/441.7)*100));return `<div class="mini-card"><div class="mini-chip" style="background:${h}"></div><div class="mini-name">${p.name}</div><div class="mini-dist">${h.toUpperCase()} · ${s}%</div></div>`;}).join('');
+}
+
+['nc','nm','ny','nk'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',update);
+  el.addEventListener('blur',()=>{el.value=clamp(isNaN(parseInt(el.value,10))?0:parseInt(el.value,10));update();});
+  el.addEventListener('keydown',(e)=>{
+    if(e.key==='ArrowUp'){e.preventDefault();el.value=clamp((parseInt(el.value,10)||0)+1);update();}
+    if(e.key==='ArrowDown'){e.preventDefault();el.value=clamp((parseInt(el.value,10)||0)-1);update();}
+  });
+});
+update();
+</script>
+</body>
+</html>
